@@ -379,7 +379,7 @@ async function boot(){
   firebase.initializeApp(CONF.firebase);
   DB=firebase.firestore();
   // Long-polling تلقائي: يحل مشكلة الشبكات/البرامج اللي بتقفل اتصال Firestore المستمر
-  try{DB.settings({ignoreUndefinedProperties:true,experimentalAutoDetectLongPolling:true,merge:true})}catch(e){}
+  try{DB.settings({ignoreUndefinedProperties:true,experimentalForceLongPolling:true,merge:true})}catch(e){}
   // حفظ محلي للتعديلات: أي تعديل وقت انقطاع الاتصال بيتحفظ ويترفع أول ما الاتصال يرجع، حتى لو اتقفلت الصفحة
   try{await DB.enablePersistence({synchronizeTabs:true})}catch(e){console.warn("persistence",e&&e.code)}
   firebase.auth().onAuthStateChanged(async u=>{
