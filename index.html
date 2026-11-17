@@ -214,6 +214,7 @@ td .s{color:var(--muted);font-size:12.5px}
     <span class="lg sand" role="img" aria-label="عز النخبة Ezz Elite"></span>
     <div class="grow"><h1>لوحة قيادة د. ممدوح رزق الله</h1><div class="sub" id="subline">مدير المبيعات · Outdoor Sales · الرياض</div></div>
     <span class="sync" id="sync">جارٍ الاتصال…</span>
+    <button class="sync" id="signout" hidden style="border:0;cursor:pointer">خروج</button>
   </div>
   <nav class="tabs" id="tabs"></nav>
 </div>
@@ -362,7 +363,7 @@ const SCHEMA={
 /* ============ data layer ============ */
 function lsGet(){try{return JSON.parse(localStorage.getItem("ezz-sales-os")||"null")}catch(e){return null}}
 function lsSet(){try{const o={config:S.config};COLS.forEach(c=>o[c]=S[c]);localStorage.setItem("ezz-sales-os",JSON.stringify(o))}catch(e){}}
-function setSync(){const el=$("#sync");
+function setSync(){const el=$("#sync");const so=$("#signout");if(so)so.hidden=MODE!=="live";
   if(MODE==="live"){if(!CAN_WRITE){el.className="sync ro";el.textContent="عرض فقط"}else if(STALE){el.className="sync ro";el.textContent="قد لا تكون البيانات محدثة"}else{el.className="sync live";el.textContent="متزامن ●"}}
   else if(MODE==="local"){el.className="sync ro";el.textContent="محلي على هذا الجهاز"}else if(MODE==="auth"||MODE==="noaccess"){el.className="sync";el.textContent="غير مسجل"}else{el.className="sync";el.textContent="جارٍ الاتصال…"}}
 let AUTH_USER=null,ROLE=null,LIVE_STARTED=false;S.roles={editors:[],viewers:[]};
@@ -427,14 +428,19 @@ async function saveCfg(patch){
   else{S.config=c;lsSet();schedule()}}
 
 /* ============ routing & render ============ */
+/* صفحة الإعدادات والدليل للمالك فقط: في وضع Firebase تظهر لصاحب ownerEmail بس */
+const OWNER_ONLY=["settings"];
+function isOwnerView(){return MODE==="live"?ROLE==="owner":MODE==="local"}
+function canSee(v){return !OWNER_ONLY.includes(v)||isOwnerView()}
 function route(first){const h=(location.hash||"").slice(1);UI.view=VIEWS.some(v=>v[0]===h)?h:"home";if(first!==true)render();window.scrollTo(0,0)}
-function renderTabs(){$("#tabs").innerHTML=VIEWS.map(v=>`<a href="#${v[0]}" class="${UI.view===v[0]?"on":""}">${v[1]}</a>`).join("")}
+function renderTabs(){$("#tabs").innerHTML=VIEWS.filter(v=>canSee(v[0])).map(v=>`<a href="#${v[0]}" class="${UI.view===v[0]?"on":""}">${v[1]}</a>`).join("")}
 function render(){
   if(MODE==="auth"||MODE==="noaccess"){$("#tabs").style.display="none";$("#fab").style.display="none";$("#main").innerHTML=gateHTML();return}
   $("#tabs").style.display="";
   renderTabs();
   if(MODE==="loading"){$("#main").innerHTML=`<div class="loading">جارٍ تحميل البيانات…</div>`;$("#fab").style.display="none";return}
   const a=document.activeElement;const fid=a&&a.id&&$("#main").contains(a)?a.id:null;const sel=fid&&a.selectionStart!=null?[a.selectionStart,a.selectionEnd]:null;
+  if(!canSee(UI.view)){UI.view="home";try{history.replaceState(null,"","#home")}catch(e){}}
   const v=UI.view;
   $("#main").innerHTML=(STALE?`<div class="note warn">تعذر الوصول لقاعدة البيانات حتى الآن، وقد لا تكون البيانات المعروضة محدثة.</div>`:"")+(VIEW_FN[v]||vHome)();
   if(fid){const el=document.getElementById(fid);if(el){el.focus();if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(e){}}}
@@ -762,7 +768,7 @@ function gateHTML(){
   return `<div class="gate card"><span class="lg auto" role="img" aria-label="عز النخبة Ezz Elite"></span><h2>لا توجد صلاحية وصول</h2><p>الحساب <b>${esc(AUTH_USER&&AUTH_USER.email)}</b> غير مضاف للنظام.<br>اطلب من د. ممدوح إضافة هذا الإيميل من الإعدادات.</p><button class="btn" id="signout">تسجيل الخروج</button></div>`}
 function vAccess(){
   if(MODE!=="live")return "";
-  const me=`<div class="card"><h3>الحساب</h3><div class="row" style="justify-content:space-between"><div><b>${esc(AUTH_USER.email)}</b><div class="s" style="color:var(--muted);font-size:13px">${{owner:"المالك",editor:"صلاحية تعديل",viewer:"اطلاع فقط"}[ROLE]}</div></div><button class="btn" id="signout">تسجيل الخروج</button></div></div>`;
+  const me=`<div class="card"><h3>الحساب</h3><div class="row" style="justify-content:space-between"><div><b>${esc(AUTH_USER.email)}</b><div class="s" style="color:var(--muted);font-size:13px">${{owner:"المالك",editor:"صلاحية تعديل",viewer:"اطلاع فقط"}[ROLE]}</div></div><span class="pill acc">الخروج من زر "خروج" أعلى الصفحة</span></div></div>`;
   if(ROLE!=="owner")return me;
   const list=(k,label)=>`<div class="f"><label>${label}</label><div class="list">${(S.roles[k]||[]).map(e=>`<div class="li"><div class="grow num">${esc(e)}</div><button class="btn sm d" data-rmrole="${k}:${esc(e)}">إزالة</button></div>`).join("")||`<div class="s" style="color:var(--muted);font-size:13px">لا يوجد</div>`}</div>
    <div class="row" style="margin-top:6px"><input type="email" id="add-${k}" placeholder="name@gmail.com" style="flex:1;border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:var(--surface2)"><button class="btn sm p" data-addrole="${k}">إضافة</button></div></div>`;
