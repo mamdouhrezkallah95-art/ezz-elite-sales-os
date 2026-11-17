@@ -402,12 +402,26 @@ function startLive(){
   if(LIVE_STARTED)return;LIVE_STARTED=true;
   MODE="live";CAN_WRITE=ROLE!=="viewer";UID=AUTH_USER.email;setSync();render();
   const db=DB;
-  const timer=setTimeout(()=>{if(loaded.size<COLS.length+1){STALE=true;setSync();render()}},10000);
+  const timer=setTimeout(()=>{if(loaded.size<COLS.length+1){STALE=true;setSync();render();diagnose()}},10000);
   const done=k=>{loaded.add(k);if(loaded.size>=COLS.length+1){clearTimeout(timer);if(STALE){STALE=false;setSync()}}};
   COLS.forEach(c=>{db.collection(c).onSnapshot(snap=>{S[c]=snap.docs.map(d=>Object.assign({},d.data(),{id:d.id}));if(!snap.metadata.fromCache)done(c);schedule()},err=>{LAST_ERR=err;done(c);console.warn(c,err);render()})});
   db.doc("meta/config").onSnapshot(s=>{S.config=s.exists?s.data():null;if(!s.metadata.fromCache)done("config");schedule()},err=>{LAST_ERR=err;done("config");render()});
   if(ROLE==="owner")db.doc("meta/roles").onSnapshot(s=>{const d=s.exists?s.data():{};S.roles={editors:d.editors||[],viewers:d.viewers||[]};schedule()},()=>{});
 }
+/* تشخيص: لما Firestore مايردش، نسأل الـ REST API مباشرة علشان نعرف السبب الحقيقي */
+let DIAG="";
+async function diagnose(){
+  try{const tok=await AUTH_USER.getIdToken();const pid=CONF.firebase.projectId;
+    const r=await fetch(`https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents/meta/config`,{headers:{Authorization:"Bearer "+tok}});
+    let j={};try{j=await r.json()}catch(e){}
+    const msg=(j.error&&(j.error.message||j.error.status))||"";
+    if(r.ok||r.status===404&&/not found|NOT_FOUND/i.test(msg)&&!/database/i.test(msg))DIAG="قاعدة البيانات شغالة وبترد، والمشكلة في الاتصال المستمر من المتصفح ده. جرّب تقفل أي VPN أو إضافة حجب إعلانات، أو افتح الصفحة من متصفح تاني.";
+    else if(/does not exist/i.test(msg)&&/database/i.test(msg))DIAG="قاعدة بيانات Firestore لسه ماتعملتش في المشروع. من Firebase Console افتح Build ← Firestore Database واضغط Create database (Production mode).";
+    else if(/has not been used|is disabled|SERVICE_DISABLED/i.test(msg))DIAG="خدمة Cloud Firestore API مش متفعّلة. من Firebase Console افتح Firestore Database واضغط Create database، أو فعّل Cloud Firestore API من Google Cloud Console.";
+    else if(r.status===403)DIAG="قاعدة البيانات رفضت الصلاحية. اتأكد إن قواعد الأمان (Rules) اتنشرت بإيميل المالك الصحيح.";
+    else DIAG=`رد الخادم (${r.status}): ${msg}`;
+  }catch(e){DIAG="المتصفح مش قادر يوصل لخوادم Google Firestore خالص (شبكة، VPN، أو إضافة حجب). جرّب شبكة أو متصفح تاني."}
+  render()}
 async function signIn(){const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:"select_account"});
   try{await firebase.auth().signInWithPopup(p)}catch(e){if(e&&/popup/.test(e.code||""))await firebase.auth().signInWithRedirect(p);else toast("تعذر تسجيل الدخول: "+(e&&e.message||""))}}
 async function signOut(){try{await firebase.auth().signOut()}catch(e){}location.reload()}
@@ -448,7 +462,7 @@ function render(){
   if(!canSee(UI.view)){UI.view="home";try{history.replaceState(null,"","#home")}catch(e){}}
   const v=UI.view;
   const errNote=LAST_ERR?`<div class="note warn"><b>قاعدة البيانات رفضت الطلب:</b> ${esc(LAST_ERR.code==="permission-denied"?"لا توجد صلاحية. اتأكد إن قواعد الأمان (Rules) اتنشرت في Firestore وإن الإيميل مضاف.":(LAST_ERR.message||LAST_ERR.code))}</div>`:"";
-  $("#main").innerHTML=errNote+(STALE&&!LAST_ERR?`<div class="note warn">تعذر الوصول لقاعدة البيانات حتى الآن. أي تعديل هتعمله هيتحفظ على الجهاز ويترفع تلقائيًا أول ما الاتصال يرجع.</div>`:"")+(VIEW_FN[v]||vHome)();
+  $("#main").innerHTML=errNote+(STALE&&!LAST_ERR?`<div class="note warn">تعذر الوصول لقاعدة البيانات حتى الآن. أي تعديل هتعمله هيتحفظ على الجهاز ويترفع تلقائيًا أول ما الاتصال يرجع.${DIAG?`<br><b>السبب:</b> ${esc(DIAG)}`:"<br>جارٍ تحديد السبب…"}</div>`:"")+(VIEW_FN[v]||vHome)();
   if(fid){const el=document.getElementById(fid);if(el){el.focus();if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(e){}}}
   $("#fab").style.display=CAN_WRITE?"":"none";
 }
