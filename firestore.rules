@@ -1,11 +1,11 @@
 rules_version = '2';
 // قواعد أمان Firestore لنظام مبيعات عز النخبة.
-// غيّر OWNER_EMAIL لإيميل Google بتاعك (نفس الموجود في config.js) قبل النشر.
+// المالك: mamdouh.rezkallah95@gmail.com — الصق الملف ده كامل في Firestore → Rules واضغط Publish.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
     function email() { return request.auth.token.email.lower(); }
-    function isOwner() { return signedIn() && email() == 'OWNER_EMAIL'.lower(); }
+    function isOwner() { return signedIn() && email() == 'mamdouh.rezkallah95@gmail.com'; }
     function hasRoles() { return exists(/databases/$(database)/documents/meta/roles); }
     function roles() { return get(/databases/$(database)/documents/meta/roles).data; }
     function isEditor() { return isOwner() || (signedIn() && hasRoles() && email() in roles().editors); }

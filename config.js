@@ -1,14 +1,14 @@
-// إعدادات الربط مع Firebase — عدّل القيم دي مرة واحدة بس.
-// 1) ownerEmail: إيميل Google بتاعك (صاحب النظام، له كل الصلاحيات).
-// 2) firebase: الصق هنا firebaseConfig من Firebase Console → Project settings → Your apps → Web app.
+// إعدادات الربط مع Firebase لنظام مبيعات عز النخبة.
+// ownerEmail: صاحب النظام (كل الصلاحيات + إدارة المستخدمين).
 window.EZZ_CONFIG = {
-  ownerEmail: "PASTE_YOUR_GOOGLE_EMAIL@gmail.com",
+  ownerEmail: "mamdouh.rezkallah95@gmail.com",
   firebase: {
-    apiKey: "PASTE_API_KEY",
-    authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-    projectId: "PASTE_PROJECT_ID",
-    storageBucket: "PASTE_PROJECT_ID.appspot.com",
-    messagingSenderId: "PASTE_SENDER_ID",
-    appId: "PASTE_APP_ID"
+    apiKey: "AIzaSyB7G55yvxH9vPWyB_Ck9I9e5DL2EQgDEFY",
+    authDomain: "ezz-elite-sales-os.firebaseapp.com",
+    projectId: "ezz-elite-sales-os",
+    storageBucket: "ezz-elite-sales-os.firebasestorage.app",
+    messagingSenderId: "888111286223",
+    appId: "1:888111286223:web:4dded0ffca6fc5feee74ba",
+    measurementId: "G-VMGM1YYTXD"
   }
 };
