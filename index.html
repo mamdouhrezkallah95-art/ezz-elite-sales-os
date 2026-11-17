@@ -404,8 +404,8 @@ function startLive(){
   const db=DB;
   const timer=setTimeout(()=>{if(loaded.size<COLS.length+1){STALE=true;setSync();render();diagnose()}},10000);
   const done=k=>{loaded.add(k);if(loaded.size>=COLS.length+1){clearTimeout(timer);if(STALE){STALE=false;setSync()}}};
-  COLS.forEach(c=>{db.collection(c).onSnapshot(snap=>{S[c]=snap.docs.map(d=>Object.assign({},d.data(),{id:d.id}));if(!snap.metadata.fromCache)done(c);schedule()},err=>{LAST_ERR=err;done(c);console.warn(c,err);render()})});
-  db.doc("meta/config").onSnapshot(s=>{S.config=s.exists?s.data():null;if(!s.metadata.fromCache)done("config");schedule()},err=>{LAST_ERR=err;done("config");render()});
+  COLS.forEach(c=>{db.collection(c).onSnapshot({includeMetadataChanges:true},snap=>{S[c]=snap.docs.map(d=>Object.assign({},d.data(),{id:d.id}));if(!snap.metadata.fromCache)done(c);schedule()},err=>{LAST_ERR=err;done(c);console.warn(c,err);render()})});
+  db.doc("meta/config").onSnapshot({includeMetadataChanges:true},s=>{S.config=s.exists?s.data():null;if(!s.metadata.fromCache)done("config");schedule()},err=>{LAST_ERR=err;done("config");render()});
   if(ROLE==="owner")db.doc("meta/roles").onSnapshot(s=>{const d=s.exists?s.data():{};S.roles={editors:d.editors||[],viewers:d.viewers||[]};schedule()},()=>{});
 }
 /* تشخيص: لما Firestore مايردش، نسأل الـ REST API مباشرة علشان نعرف السبب الحقيقي */
