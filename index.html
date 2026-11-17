@@ -188,6 +188,7 @@ td .s{color:var(--muted);font-size:12.5px}
 .ring b{width:72px;height:72px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-size:20px;font-weight:700}
 .owner{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:var(--r);background:var(--navy);color:var(--cream);border:1px solid rgba(242,198,107,.35);box-shadow:var(--shadow)}
 .owner .av{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.14);border:2px solid var(--gold);color:var(--gold);display:grid;place-items:center;font-weight:700;font-size:16px;flex:none}
+.owner img.av{object-fit:cover;padding:0;background:var(--navy2)}
 .owner .grow{flex:1;min-width:0}
 .owner .ol{font-size:12px;opacity:.75}
 .owner .on{font-size:22px;font-weight:700;line-height:1.25}
@@ -494,7 +495,7 @@ function vHome(){
   const stageCounts=OPP_STAGES.map(s=>[s[1],S.customers.filter(x=>x.stage===s[0]).length]);const mx=Math.max(1,...stageCounts.map(s=>s[1]));
   const weeks=groupWeeks(tasks);
   const wins=[...S.wins].sort((a,b)=>(b.date||"")>(a.date||"")?1:-1).slice(0,5);
-  return `<div class="owner"><div class="av">م.ر</div><div class="grow"><div class="ol">لوحة القيادة الخاصة بـ</div><div class="on">د. ممدوح رزق الله</div><div class="or">مدير المبيعات · عز النخبة</div></div><div class="oday"><b class="num">${dayN<1?"—":Math.min(dayN,total)}</b><span>${dayN<1?"قبل البدء":"يوم من "+total}</span></div></div>
+  return `<div class="owner"><img class="av" src="avatar.jpg" alt="د. ممدوح رزق الله" width="52" height="52"><div class="grow"><div class="ol">لوحة القيادة الخاصة بـ</div><div class="on">د. ممدوح رزق الله</div><div class="or">مدير المبيعات · عز النخبة</div></div><div class="oday"><b class="num">${dayN<1?"—":Math.min(dayN,total)}</b><span>${dayN<1?"قبل البدء":"يوم من "+total}</span></div></div>
   <div class="vh"><div><h2>ملخص الأداء</h2><p>${esc(c.active_plan)} · من ${dshort(c.period_start)} إلى ${dshort(c.period_end)} · ${dayLine}</p></div>
    <div class="row"><a class="btn" href="#reports">تقرير الأسبوع</a>${CAN_WRITE?`<button class="btn p" data-add="daily">+ تقرير اليوم</button>`:""}</div></div>
   <div class="kpis">
