@@ -363,10 +363,10 @@ const SCHEMA={
 /* ============ data layer ============ */
 function lsGet(){try{return JSON.parse(localStorage.getItem("ezz-sales-os")||"null")}catch(e){return null}}
 function lsSet(){try{const o={config:S.config};COLS.forEach(c=>o[c]=S[c]);localStorage.setItem("ezz-sales-os",JSON.stringify(o))}catch(e){}}
-function setSync(){const el=$("#sync");const so=$("#signout");if(so)so.hidden=MODE!=="live";
+function setSync(){const el=$("#sync");const so=$("#signout");if(so){so.hidden=MODE!=="live";if(AUTH_USER)so.title=AUTH_USER.email;so.textContent=MODE==="live"&&AUTH_USER?`خروج · ${AUTH_USER.email.split("@")[0]} (${{owner:"مالك",editor:"تعديل",viewer:"اطلاع"}[ROLE]||""})`:"خروج"}
   if(MODE==="live"){if(!CAN_WRITE){el.className="sync ro";el.textContent="عرض فقط"}else if(STALE){el.className="sync ro";el.textContent="قد لا تكون البيانات محدثة"}else{el.className="sync live";el.textContent="متزامن ●"}}
   else if(MODE==="local"){el.className="sync ro";el.textContent="محلي على هذا الجهاز"}else if(MODE==="auth"||MODE==="noaccess"){el.className="sync";el.textContent="غير مسجل"}else{el.className="sync";el.textContent="جارٍ الاتصال…"}}
-let AUTH_USER=null,ROLE=null,LIVE_STARTED=false;S.roles={editors:[],viewers:[]};
+let AUTH_USER=null,ROLE=null,LIVE_STARTED=false,LAST_ERR=null;S.roles={editors:[],viewers:[]};
 const CONF=window.EZZ_CONFIG||{};
 const OWNER=String(CONF.ownerEmail||"").trim().toLowerCase();
 function fbReady(){return !!(window.firebase&&CONF.firebase&&CONF.firebase.apiKey&&!/^PASTE/.test(CONF.firebase.apiKey))}
@@ -376,7 +376,11 @@ async function boot(){
   DL=fileDL();
   if(!fbReady()){MODE="local";const o=lsGet();if(o){S.config=o.config;COLS.forEach(c=>S[c]=o[c]||[])}setSync();render();return}
   firebase.initializeApp(CONF.firebase);
-  DB=firebase.firestore();try{DB.settings({ignoreUndefinedProperties:true,merge:true})}catch(e){}
+  DB=firebase.firestore();
+  // Long-polling تلقائي: يحل مشكلة الشبكات/البرامج اللي بتقفل اتصال Firestore المستمر
+  try{DB.settings({ignoreUndefinedProperties:true,experimentalAutoDetectLongPolling:true,merge:true})}catch(e){}
+  // حفظ محلي للتعديلات: أي تعديل وقت انقطاع الاتصال بيتحفظ ويترفع أول ما الاتصال يرجع، حتى لو اتقفلت الصفحة
+  try{await DB.enablePersistence({synchronizeTabs:true})}catch(e){console.warn("persistence",e&&e.code)}
   firebase.auth().onAuthStateChanged(async u=>{
     AUTH_USER=u;
     if(!u){MODE="auth";setSync();render();return}
@@ -399,8 +403,8 @@ function startLive(){
   const db=DB;
   const timer=setTimeout(()=>{if(loaded.size<COLS.length+1){STALE=true;setSync();render()}},10000);
   const done=k=>{loaded.add(k);if(loaded.size>=COLS.length+1){clearTimeout(timer);if(STALE){STALE=false;setSync()}}};
-  COLS.forEach(c=>{db.collection(c).onSnapshot(snap=>{S[c]=snap.docs.map(d=>Object.assign({},d.data(),{id:d.id}));if(!snap.metadata.fromCache)done(c);schedule()},err=>{done(c);console.warn(c,err)})});
-  db.doc("meta/config").onSnapshot(s=>{S.config=s.exists?s.data():null;if(!s.metadata.fromCache)done("config");schedule()},()=>done("config"));
+  COLS.forEach(c=>{db.collection(c).onSnapshot(snap=>{S[c]=snap.docs.map(d=>Object.assign({},d.data(),{id:d.id}));if(!snap.metadata.fromCache)done(c);schedule()},err=>{LAST_ERR=err;done(c);console.warn(c,err);render()})});
+  db.doc("meta/config").onSnapshot(s=>{S.config=s.exists?s.data():null;if(!s.metadata.fromCache)done("config");schedule()},err=>{LAST_ERR=err;done("config");render()});
   if(ROLE==="owner")db.doc("meta/roles").onSnapshot(s=>{const d=s.exists?s.data():{};S.roles={editors:d.editors||[],viewers:d.viewers||[]};schedule()},()=>{});
 }
 async function signIn(){const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:"select_account"});
@@ -442,7 +446,8 @@ function render(){
   const a=document.activeElement;const fid=a&&a.id&&$("#main").contains(a)?a.id:null;const sel=fid&&a.selectionStart!=null?[a.selectionStart,a.selectionEnd]:null;
   if(!canSee(UI.view)){UI.view="home";try{history.replaceState(null,"","#home")}catch(e){}}
   const v=UI.view;
-  $("#main").innerHTML=(STALE?`<div class="note warn">تعذر الوصول لقاعدة البيانات حتى الآن، وقد لا تكون البيانات المعروضة محدثة.</div>`:"")+(VIEW_FN[v]||vHome)();
+  const errNote=LAST_ERR?`<div class="note warn"><b>قاعدة البيانات رفضت الطلب:</b> ${esc(LAST_ERR.code==="permission-denied"?"لا توجد صلاحية. اتأكد إن قواعد الأمان (Rules) اتنشرت في Firestore وإن الإيميل مضاف.":(LAST_ERR.message||LAST_ERR.code))}</div>`:"";
+  $("#main").innerHTML=errNote+(STALE&&!LAST_ERR?`<div class="note warn">تعذر الوصول لقاعدة البيانات حتى الآن. أي تعديل هتعمله هيتحفظ على الجهاز ويترفع تلقائيًا أول ما الاتصال يرجع.</div>`:"")+(VIEW_FN[v]||vHome)();
   if(fid){const el=document.getElementById(fid);if(el){el.focus();if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(e){}}}
   $("#fab").style.display=CAN_WRITE?"":"none";
 }
